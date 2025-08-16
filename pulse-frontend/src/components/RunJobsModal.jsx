@@ -26,11 +26,6 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
   // collapsing job sections
   const [openJob, setOpenJob] = useState(null);
 
-  // step log state
-  const [openStep, setOpenStep] = useState(null); // key: `${jobId}-${step}`
-  const [stepLogs, setStepLogs] = useState({});
-  const [stepLoading, setStepLoading] = useState(null);
-
   // AI assist state
   const [aiForJob, setAiForJob] = useState(null); // jobId
   const [aiLoading, setAiLoading] = useState(false);
@@ -70,30 +65,6 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
 
   const handleToggleJob = (jobId) => {
     setOpenJob((cur) => (cur === jobId ? null : jobId));
-    // close any open step when switching jobs
-    setOpenStep(null);
-  };
-
-  const handleToggleStep = async (jobId, stepNum) => {
-    const key = `${jobId}-${stepNum}`;
-    if (openStep === key) {
-      setOpenStep(null);
-      return;
-    }
-    setOpenStep(key);
-    if (!stepLogs[key]) {
-      try {
-        setStepLoading(key);
-        const { text } = await fetchJobLog(owner, repo, runId, jobId, stepNum);
-        setStepLogs((prev) => ({ ...prev, [key]: text || "" }));
-      } catch (e) {
-        const msg =
-          e.response?.data?.error || e.message || "Failed to load log";
-        setStepLogs((prev) => ({ ...prev, [key]: msg }));
-      } finally {
-        setStepLoading(null);
-      }
-    }
   };
 
   const handleAskAI = async (job) => {
@@ -105,46 +76,38 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
       // Gather a compact textual log for this job
       const { text } = await fetchJobLog(owner, repo, runId, job.id);
 
-export async function fetchPipelines(org, includeRuns = true) {
-  const { data } = await api.get("/github/pipelines", {
-    params: { org, includeRuns },
-  });
-  return data;
-}
+      // Build a short error text from failed steps (if any)
+      // Identify a failed step (if any)
+      const failedStep = (job.steps || []).find(
+        (s) => (s.conclusion || "").toLowerCase() === "failure"
+      );
 
-/**
- * fetchRunJobs(owner, repo, runOrId)
- * - Accepts a run object (with runId or id), or a primitive id.
- * - Always sends `runId` to backend.
- */
-export async function fetchRunJobs(owner, repo, runOrId) {
-  const runId =
-    typeof runOrId === "object"
-      ? runOrId.runId ?? runOrId.id ?? runOrId.run_id
-      : runOrId;
+      // Gather a compact textual log for this job or a specific failed step
+      const { text: logText } = await fetchJobLog(
+        owner,
+        repo,
+        runId,
+        job.id,
+        failedStep?.number
+      );
 
-  if (runId == null) {
-    throw new Error("runId was not provided to fetchRunJobs()");
-  }
+      // Build a short error text from failed steps (if any)
+      const errorText = failedStep
+        ? `Failed step: ${failedStep.name} — status: ${failedStep.status}, conclusion: ${failedStep.conclusion}`
+        : `Job ended with conclusion: ${job.conclusion}`;
 
-  // Request step details so that each task's status/conclusion is present in
-  // the response. Without `includeSteps` the backend only returned the task
-  // names which meant we could not display their current status in the UI.
-  const { data } = await api.get("/github/run-jobs", {
-    params: { owner, repo, runId: String(runId), includeSteps: true },
-  });
-  return data;
-}
+      const { suggestion } = await aiSuggest({
+        errorText,
+        stepsLog: text || "",
+      });
 
-/** Build a compact text log for a job or specific step (for AI or UI) */
-export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
-  const params = {
-    owner,
-    repo,
-    runId: String(runId),
-    jobId: String(jobId),
+      setAiText(suggestion || "No suggestion");
+    } catch (e) {
+      setAiText(e.response?.data?.error || e.message || "AI suggestion failed");
+    } finally {
+      setAiLoading(false);
+    }
   };
-  if (stepNum != null) params.step = String(stepNum);
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
@@ -212,38 +175,25 @@ export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
                         Steps
                       </div>
                       <div className="rounded-lg border bg-white overflow-hidden">
-                        {(job.steps || []).map((s) => {
-                          const key = `${job.id}-${s.number}`;
-                          const isOpen = openStep === key;
-                          return (
-                            <div key={s.number} className="border-b last:border-b-0">
-                              <button
-                                onClick={() => handleToggleStep(job.id, s.number)}
-                                className="w-full px-3 py-2 flex items-center justify-between hover:bg-slate-50"
-                              >
-                                <div className="text-sm text-left">{s.name}</div>
-                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                  <Badge
-                                    status={s.status}
-                                    conclusion={s.conclusion}
-                                  />
-                                  <span>
-                                    {s.started_at
-                                      ? new Date(s.started_at).toLocaleTimeString()
-                                      : "—"}
-                                  </span>
-                                </div>
-                              </button>
-                              {isOpen && (
-                                <pre className="px-3 py-2 text-xs bg-gray-50 whitespace-pre-wrap overflow-auto">
-                                  {stepLoading === key
-                                    ? "Loading..."
-                                    : stepLogs[key] || ""}
-                                </pre>
-                              )}
+                        {(job.steps || []).map((s) => (
+                          <div
+                            key={s.number}
+                            className="px-3 py-2 flex items-center justify-between border-b last:border-b-0"
+                          >
+                            <div className="text-sm">{s.name}</div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Badge
+                                status={s.status}
+                                conclusion={s.conclusion}
+                              />
+                              <span>
+                                {s.started_at
+                                  ? new Date(s.started_at).toLocaleTimeString()
+                                  : "—"}
+                              </span>
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
 
                       {failed && (
@@ -258,8 +208,28 @@ export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
                               : "Get AI Fix"}
                           </button>
 
-/** Ask the Gemini backend for a fix suggestion */
-export async function aiSuggest({ errorText = "", stepsLog = "" }) {
-  const { data } = await api.post("/ai/suggest", { errorText, stepsLog });
-  return data; // { suggestion }
+                          {aiForJob === job.id && aiText && (
+                            <div className="mt-3 p-3 rounded-lg border bg-white prose prose-sm max-w-none">
+                              <div className="text-xs text-gray-500 mb-1">
+                                AI suggestion
+                              </div>
+                              <div
+                                className="whitespace-pre-wrap"
+                                style={{ fontFamily: "ui-sans-serif" }}
+                              >
+                                {aiText}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    </div>
+  );
 }
