@@ -100,7 +100,11 @@ export default function Topbar({ user, onLogout, org, setOrg, onReload }) {
                 <div className="text-xs text-gray-500">{user?.username}</div>
               </div>
               <button
-                onClick={onLogout}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onLogout();
+                }}
                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
               >
                 Logout

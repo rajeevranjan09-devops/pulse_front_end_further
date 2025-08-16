@@ -3,12 +3,29 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "http://localhost:5000",
-  withCredentials: true,
+  // Do not send cookies by default. The backend expects the auth token in the
+  // Authorization header and responds with a wildcard `Access-Control-Allow-Origin`.
+  // Including credentials would trigger CORS preflight failures.
+});
+
+// Attach auth token (if any) to every request. Many endpoints such as
+// organization listing, pipeline refresh and AI suggestions require the
+// bearer token to be sent explicitly. Without this interceptor the calls
+// were failing with 401 which resulted in empty organizations and no
+// dynamic updates.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 export async function fetchOrganizations() {
+  // Backend responds with `{ orgs: [...] }`.
+  // Returning the inner array keeps the consumer logic simple and
+  // avoids treating the object itself as an array which previously
+  // resulted in a failed organizations dropdown.
   const { data } = await api.get("/github/organizations");
-  return data;
+  return data?.orgs || [];
 }
 
 export async function fetchPipelines(org, includeRuns = true) {
@@ -33,8 +50,11 @@ export async function fetchRunJobs(owner, repo, runOrId) {
     throw new Error("runId was not provided to fetchRunJobs()");
   }
 
+  // Request step details so that each task's status/conclusion is present in
+  // the response. Without `includeSteps` the backend only returned the task
+  // names which meant we could not display their current status in the UI.
   const { data } = await api.get("/github/run-jobs", {
-    params: { owner, repo, runId: String(runId) },
+    params: { owner, repo, runId: String(runId), includeSteps: true },
   });
   return data;
 }
