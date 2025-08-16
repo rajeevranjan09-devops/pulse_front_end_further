@@ -109,13 +109,21 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
       setAiLoading(true);
       setAiText("");
 
-      // Gather a compact textual log for this job
-      const { text } = await fetchJobLog(owner, repo, runId, job.id);
-
-      // Build a short error text from failed steps (if any)
+      // Identify a failed step (if any)
       const failedStep = (job.steps || []).find(
         (s) => (s.conclusion || "").toLowerCase() === "failure"
       );
+
+      // Gather a compact textual log for this job or a specific failed step
+      const { text } = await fetchJobLog(
+        owner,
+        repo,
+        runId,
+        job.id,
+        failedStep?.number
+      );
+
+      // Build a short error text from failed steps (if any)
       const errorText = failedStep
         ? `Failed step: ${failedStep.name} — status: ${failedStep.status}, conclusion: ${failedStep.conclusion}`
         : `Job ended with conclusion: ${job.conclusion}`;
