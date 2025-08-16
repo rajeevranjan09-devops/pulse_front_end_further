@@ -18,8 +18,12 @@ api.interceptors.request.use((config) => {
 });
 
 export async function fetchOrganizations() {
+  // Backend responds with `{ orgs: [...] }`.
+  // Returning the inner array keeps the consumer logic simple and
+  // avoids treating the object itself as an array which previously
+  // resulted in a failed organizations dropdown.
   const { data } = await api.get("/github/organizations");
-  return data;
+  return data?.orgs || [];
 }
 
 export async function fetchPipelines(org, includeRuns = true) {
