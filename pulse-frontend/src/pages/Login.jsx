@@ -1,17 +1,10 @@
 import { useState } from "react";
-import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 
 export default function Login() {
   const navigate = useNavigate();
-
-  // Get context safely (in case provider isn’t mounted, component will render nothing)
-  const auth = useAuth();
-  if (!auth) return null;
-
-  // ⬇ rename to avoid any collision with an existing "login" identifier
-  const { login: authLogin } = auth;
+  const { login: authLogin } = useAuth();
 
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");

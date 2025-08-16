@@ -5,7 +5,12 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
+  // Read the token from localStorage if present. String values such as
+  // "undefined" or "null" should not be treated as valid tokens.
+  const stored = localStorage.getItem("token");
+  const [token, setToken] = useState(
+    stored && stored !== "undefined" && stored !== "null" ? stored : ""
+  );
 
   const login = async (username, password) => {
     const res = await fetch(`${import.meta.env.VITE_API_BASE}/auth/login`, {
@@ -27,11 +32,16 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("token");
   };
 
+  const isAuthenticated = !!token;
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, setUser, setToken }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, setUser, setToken, isAuthenticated }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
