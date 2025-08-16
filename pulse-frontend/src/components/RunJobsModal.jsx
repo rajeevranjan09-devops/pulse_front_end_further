@@ -91,11 +91,20 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
           jobId,
           stepNum
         );
-        setLogCache((cur) => ({ ...cur, [key]: text }));
-      } catch (e) {
+        // Populate cache with the real log text. If the backend returns an
+        // empty payload we show a friendly fallback message.
         setLogCache((cur) => ({
           ...cur,
-          [key]: e.response?.data?.error || e.message || "Failed to load log",
+          [key]: text && text.trim() ? text : "No log available",
+        }));
+      } catch (e) {
+        const msg =
+          e.response?.status === 404
+            ? "No log available"
+            : e.response?.data?.error || e.message || "Failed to load log";
+        setLogCache((cur) => ({
+          ...cur,
+          [key]: msg,
         }));
       } finally {
         setLoadingStep(null);
@@ -236,7 +245,7 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
                                 <pre className="px-3 py-2 text-xs overflow-auto bg-gray-50 text-left">
                                   {loadingStep === key
                                     ? "Loading log..."
-                                    : logCache[key] || ""}
+                                    : logCache[key] || "No log available"}
                                 </pre>
                               )}
                             </div>
