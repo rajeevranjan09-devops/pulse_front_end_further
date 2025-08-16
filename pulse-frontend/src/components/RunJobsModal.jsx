@@ -106,6 +106,7 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
       const failedStep = (job.steps || []).find(
         (s) => (s.conclusion || "").toLowerCase() === "failure"
       );
+
       const stepNum = failedStep?.number;
 
       // Gather a compact textual log for this job or a specific failed step
