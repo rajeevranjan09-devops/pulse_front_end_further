@@ -26,6 +26,11 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
   // collapsing job sections
   const [openJob, setOpenJob] = useState(null);
 
+  // step log state
+  const [openStep, setOpenStep] = useState(null); // key: `${jobId}-${step}`
+  const [stepLogs, setStepLogs] = useState({});
+  const [stepLoading, setStepLoading] = useState(null);
+
   // AI assist state
   const [aiForJob, setAiForJob] = useState(null); // jobId
   const [aiLoading, setAiLoading] = useState(false);
@@ -65,6 +70,30 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
 
   const handleToggleJob = (jobId) => {
     setOpenJob((cur) => (cur === jobId ? null : jobId));
+    // close any open step when switching jobs
+    setOpenStep(null);
+  };
+
+  const handleToggleStep = async (jobId, stepNum) => {
+    const key = `${jobId}-${stepNum}`;
+    if (openStep === key) {
+      setOpenStep(null);
+      return;
+    }
+    setOpenStep(key);
+    if (!stepLogs[key]) {
+      try {
+        setStepLoading(key);
+        const { text } = await fetchJobLog(owner, repo, runId, jobId, stepNum);
+        setStepLogs((prev) => ({ ...prev, [key]: text || "" }));
+      } catch (e) {
+        const msg =
+          e.response?.data?.error || e.message || "Failed to load log";
+        setStepLogs((prev) => ({ ...prev, [key]: msg }));
+      } finally {
+        setStepLoading(null);
+      }
+    }
   };
 
   const handleAskAI = async (job) => {
@@ -73,23 +102,15 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
       setAiLoading(true);
       setAiText("");
 
-      // Gather a compact textual log for this job
-      const { text } = await fetchJobLog(owner, repo, runId, job.id);
-
-      // Build a short error text from failed steps (if any)
       // Identify a failed step (if any)
       const failedStep = (job.steps || []).find(
         (s) => (s.conclusion || "").toLowerCase() === "failure"
       );
 
+      const stepNum = failedStep?.number;
+
       // Gather a compact textual log for this job or a specific failed step
-      const { text: logText } = await fetchJobLog(
-        owner,
-        repo,
-        runId,
-        job.id,
-        failedStep?.number
-      );
+      const { text } = await fetchJobLog(owner, repo, runId, job.id, stepNum);
 
       // Build a short error text from failed steps (if any)
       const errorText = failedStep
@@ -175,25 +196,38 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
                         Steps
                       </div>
                       <div className="rounded-lg border bg-white overflow-hidden">
-                        {(job.steps || []).map((s) => (
-                          <div
-                            key={s.number}
-                            className="px-3 py-2 flex items-center justify-between border-b last:border-b-0"
-                          >
-                            <div className="text-sm">{s.name}</div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <Badge
-                                status={s.status}
-                                conclusion={s.conclusion}
-                              />
-                              <span>
-                                {s.started_at
-                                  ? new Date(s.started_at).toLocaleTimeString()
-                                  : "—"}
-                              </span>
+                        {(job.steps || []).map((s) => {
+                          const key = `${job.id}-${s.number}`;
+                          const isOpen = openStep === key;
+                          return (
+                            <div key={s.number} className="border-b last:border-b-0">
+                              <button
+                                onClick={() => handleToggleStep(job.id, s.number)}
+                                className="w-full px-3 py-2 flex items-center justify-between hover:bg-slate-50"
+                              >
+                                <div className="text-sm text-left">{s.name}</div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <Badge
+                                    status={s.status}
+                                    conclusion={s.conclusion}
+                                  />
+                                  <span>
+                                    {s.started_at
+                                      ? new Date(s.started_at).toLocaleTimeString()
+                                      : "—"}
+                                  </span>
+                                </div>
+                              </button>
+                              {isOpen && (
+                                <pre className="px-3 py-2 text-xs bg-gray-50 whitespace-pre-wrap overflow-auto">
+                                  {stepLoading === key
+                                    ? "Loading..."
+                                    : stepLogs[key] || ""}
+                                </pre>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {failed && (
