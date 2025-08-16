@@ -19,17 +19,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Attach auth token (if any) to every request. Many endpoints such as
-// organization listing, pipeline refresh and AI suggestions require the
-// bearer token to be sent explicitly. Without this interceptor the calls
-// were failing with 401 which resulted in empty organizations and no
-// dynamic updates.
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
 export async function fetchOrganizations() {
   // Normalize backend responses which may return `{ orgs: [...] }` or a plain
   // array. Returning just the array keeps the consumer logic simple and avoids
@@ -54,8 +43,8 @@ export async function fetchPipelines(org, includeRuns = true) {
  */
 export async function fetchRunJobs(owner, repo, runOrId) {
   const runId =
-    (runOrId && (runOrId.runId ?? runOrId.id)) !== undefined
-      ? (runOrId.runId ?? runOrId.id)
+    typeof runOrId === "object"
+      ? runOrId.runId ?? runOrId.id ?? runOrId.run_id
       : runOrId;
 
   if (runId == null) {
@@ -71,11 +60,17 @@ export async function fetchRunJobs(owner, repo, runOrId) {
   return data;
 }
 
-/** Build a compact text log for a job (for AI) */
-export async function fetchJobLog(owner, repo, runId, jobId) {
-  const { data } = await api.get("/github/job-log", {
-    params: { owner, repo, runId: String(runId), jobId: String(jobId) },
-  });
+/** Build a compact text log for a job or step (for AI or UI) */
+export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
+  const params = {
+    owner,
+    repo,
+    runId: String(runId),
+    jobId: String(jobId),
+  };
+  if (stepNum != null) params.step = String(stepNum);
+
+  const { data } = await api.get("/github/job-log", { params });
   return data; // { text: '...' }
 }
 
