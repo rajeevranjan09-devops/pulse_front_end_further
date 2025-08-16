@@ -3,16 +3,16 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useAuth } from "./context/AuthContext";
 
 export default function App() {
-  const stored = localStorage.getItem("token");
-  const isAuth = stored && stored !== "undefined" && stored !== "null";
+  const { isAuthenticated } = useAuth();
 
   return (
     <Routes>
       <Route
         path="/"
-        element={<Navigate to={isAuth ? "/dashboard" : "/login"} replace />}
+        element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
       />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
@@ -26,7 +26,7 @@ export default function App() {
       />
       <Route
         path="*"
-        element={<Navigate to={isAuth ? "/dashboard" : "/login"} replace />}
+        element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
       />
     </Routes>
   );

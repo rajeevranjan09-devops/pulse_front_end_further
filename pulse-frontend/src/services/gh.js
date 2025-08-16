@@ -3,7 +3,20 @@ import axios from "axios";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE || "http://localhost:5000",
-  withCredentials: true,
+  // Do not send cookies by default. The backend expects the auth token in the
+  // Authorization header and responds with a wildcard `Access-Control-Allow-Origin`.
+  // Including credentials would trigger CORS preflight failures.
+});
+
+// Attach auth token (if any) to every request. Many endpoints such as
+// organization listing, pipeline refresh and AI suggestions require the
+// bearer token to be sent explicitly. Without this interceptor the calls
+// were failing with 401 which resulted in empty organizations and no
+// dynamic updates.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 // Attach auth token (if any) to every request. Many endpoints such as
