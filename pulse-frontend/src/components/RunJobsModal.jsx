@@ -25,8 +25,8 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
 
   // collapsing job sections
   const [openJob, setOpenJob] = useState(null);
-  const [openStep, setOpenStep] = useState(null); // { jobId, step }
-  const [logCache, setLogCache] = useState({}); // { "jobId-step": text }
+  const [openStep, setOpenStep] = useState(null); // { jobId, stepNum }
+  const [logCache, setLogCache] = useState({}); // { "jobId-stepNum": text }
   const [loadingStep, setLoadingStep] = useState(null); // key currently fetching
 
   // AI assist state
@@ -77,8 +77,8 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
   const handleToggleStep = async (jobId, stepNum) => {
     const key = `${jobId}-${stepNum}`;
     const isOpen =
-      openStep && openStep.jobId === jobId && openStep.step === stepNum;
-    const next = isOpen ? null : { jobId, step: stepNum };
+      openStep && openStep.jobId === jobId && openStep.stepNum === stepNum;
+    const next = isOpen ? null : { jobId, stepNum };
     setOpenStep(next);
 
     if (!isOpen && !logCache[key]) {
@@ -221,7 +221,7 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
                           const isOpen =
                             openStep &&
                             openStep.jobId === job.id &&
-                            openStep.step === s.number;
+                            openStep.stepNum === s.number;
                           return (
                             <div key={s.number} className="border-b last:border-b-0">
                               <button
