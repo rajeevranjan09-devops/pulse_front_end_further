@@ -1,9 +1,11 @@
 // frontend/src/pages/Dashboard.jsx
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import { fetchPipelines } from "../services/gh";
 import StatusBadge from "../components/StatusBadge";
 import RunJobsModal from "../components/RunJobsModal";
+import { useAuth } from "../context/AuthContext";
 
 function Tile({ title, value }) {
   return (
@@ -17,6 +19,8 @@ function Tile({ title, value }) {
 const REFRESH_MS = 5000;
 
 export default function Dashboard() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [org, setOrg] = useState(localStorage.getItem("selected_org") || "");
   const [pipelines, setPipelines] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -86,9 +90,20 @@ export default function Dashboard() {
     setModalOpen(true);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <Topbar org={org} setOrg={setOrg} onReload={() => load(org)} />
+      <Topbar
+        user={user}
+        onLogout={handleLogout}
+        org={org}
+        setOrg={setOrg}
+        onReload={() => load(org)}
+      />
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-4">
