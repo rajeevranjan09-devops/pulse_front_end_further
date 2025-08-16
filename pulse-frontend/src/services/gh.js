@@ -43,8 +43,8 @@ export async function fetchPipelines(org, includeRuns = true) {
  */
 export async function fetchRunJobs(owner, repo, runOrId) {
   const runId =
-    (runOrId && (runOrId.runId ?? runOrId.id)) !== undefined
-      ? (runOrId.runId ?? runOrId.id)
+    typeof runOrId === "object"
+      ? runOrId.runId ?? runOrId.id ?? runOrId.run_id
       : runOrId;
 
   if (runId == null) {
@@ -60,23 +60,17 @@ export async function fetchRunJobs(owner, repo, runOrId) {
   return data;
 }
 
-/** Build a compact text log for a job (for AI)
- * @param {string} owner
- * @param {string} repo
- * @param {string|number} runId
- * @param {string|number} jobId
- * @param {string|number} stepNum - step number for step-specific log
- */
+/** Build a compact text log for a job or step (for AI or UI) */
 export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
-  const { data } = await api.get("/github/job-log", {
-    params: {
-      owner,
-      repo,
-      runId: String(runId),
-      jobId: String(jobId),
-      step: String(stepNum),
-    },
-  });
+  const params = {
+    owner,
+    repo,
+    runId: String(runId),
+    jobId: String(jobId),
+  };
+  if (stepNum != null) params.step = String(stepNum);
+
+  const { data } = await api.get("/github/job-log", { params });
   return data; // { text: '...' }
 }
 
