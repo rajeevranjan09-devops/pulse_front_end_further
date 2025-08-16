@@ -71,11 +71,24 @@ export async function fetchRunJobs(owner, repo, runOrId) {
   return data;
 }
 
-/** Build a compact text log for a job (for AI) */
-export async function fetchJobLog(owner, repo, runId, jobId) {
-  const { data } = await api.get("/github/job-log", {
-    params: { owner, repo, runId: String(runId), jobId: String(jobId) },
-  });
+/** Build a compact text log for a job (for AI)
+ * @param {string} owner
+ * @param {string} repo
+ * @param {string|number} runId
+ * @param {string|number} jobId
+ * @param {string|number} [stepNum] - optional step number for step-specific log
+ */
+export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
+  const params = {
+    owner,
+    repo,
+    runId: String(runId),
+    jobId: String(jobId),
+  };
+  if (stepNum !== undefined && stepNum !== null) {
+    params.stepNum = String(stepNum);
+  }
+  const { data } = await api.get("/github/job-log", { params });
   return data; // { text: '...' }
 }
 
