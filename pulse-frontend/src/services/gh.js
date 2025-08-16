@@ -65,22 +65,18 @@ export async function fetchRunJobs(owner, repo, runOrId) {
  * @param {string} repo
  * @param {string|number} runId
  * @param {string|number} jobId
- * @param {string|number} [step] - optional step number for step-specific log
+ * @param {string|number} stepNum - step number for step-specific log
  */
-export async function fetchJobLog(owner, repo, runId, jobId, step) {
-  const params = {
-    owner,
-    repo,
-    runId: String(runId),
-    jobId: String(jobId),
-  };
-  if (step !== undefined && step !== null) {
-    // Backend expects `step` as the query parameter name when requesting a
-    // specific step's log. The previous `stepNum` param no longer returns
-    // anything.
-    params.step = String(step);
-  }
-  const { data } = await api.get("/github/job-log", { params });
+export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
+  const { data } = await api.get("/github/job-log", {
+    params: {
+      owner,
+      repo,
+      runId: String(runId),
+      jobId: String(jobId),
+      step: String(stepNum),
+    },
+  });
   return data; // { text: '...' }
 }
 
