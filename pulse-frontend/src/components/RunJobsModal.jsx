@@ -25,6 +25,9 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
 
   // collapsing job sections
   const [openJob, setOpenJob] = useState(null);
+  const [openStep, setOpenStep] = useState(null); // { jobId, step }
+  const [logCache, setLogCache] = useState({}); // { "jobId-step": text }
+  const [loadingStep, setLoadingStep] = useState(null); // key currently fetching
 
   // AI assist state
   const [aiForJob, setAiForJob] = useState(null); // jobId
@@ -40,6 +43,9 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
       setErr("");
       setJobs([]);
       setOpenJob(null);
+      setOpenStep(null);
+      setLogCache({});
+      setLoadingStep(null);
       setAiForJob(null);
       setAiText("");
       try {
@@ -64,7 +70,37 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
   const runId = run?.runId ?? run?.id;
 
   const handleToggleJob = (jobId) => {
+    setOpenStep(null);
     setOpenJob((cur) => (cur === jobId ? null : jobId));
+  };
+
+  const handleToggleStep = async (jobId, stepNum) => {
+    const key = `${jobId}-${stepNum}`;
+    const isOpen =
+      openStep && openStep.jobId === jobId && openStep.step === stepNum;
+    const next = isOpen ? null : { jobId, step: stepNum };
+    setOpenStep(next);
+
+    if (!isOpen && !logCache[key]) {
+      setLoadingStep(key);
+      try {
+        const { text } = await fetchJobLog(
+          owner,
+          repo,
+          runId,
+          jobId,
+          stepNum
+        );
+        setLogCache((cur) => ({ ...cur, [key]: text }));
+      } catch (e) {
+        setLogCache((cur) => ({
+          ...cur,
+          [key]: e.response?.data?.error || e.message || "Failed to load log",
+        }));
+      } finally {
+        setLoadingStep(null);
+      }
+    }
   };
 
   const handleAskAI = async (job) => {
@@ -163,25 +199,41 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
                         Steps
                       </div>
                       <div className="rounded-lg border bg-white overflow-hidden">
-                        {(job.steps || []).map((s) => (
-                          <div
-                            key={s.number}
-                            className="px-3 py-2 flex items-center justify-between border-b last:border-b-0"
-                          >
-                            <div className="text-sm">{s.name}</div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <Badge
-                                status={s.status}
-                                conclusion={s.conclusion}
-                              />
-                              <span>
-                                {s.started_at
-                                  ? new Date(s.started_at).toLocaleTimeString()
-                                  : "—"}
-                              </span>
+                        {(job.steps || []).map((s) => {
+                          const key = `${job.id}-${s.number}`;
+                          const isOpen =
+                            openStep &&
+                            openStep.jobId === job.id &&
+                            openStep.step === s.number;
+                          return (
+                            <div key={s.number} className="border-b last:border-b-0">
+                              <button
+                                onClick={() => handleToggleStep(job.id, s.number)}
+                                className="w-full px-3 py-2 flex items-center justify-between"
+                              >
+                                <div className="text-sm text-left">{s.name}</div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <Badge
+                                    status={s.status}
+                                    conclusion={s.conclusion}
+                                  />
+                                  <span>
+                                    {s.started_at
+                                      ? new Date(s.started_at).toLocaleTimeString()
+                                      : "—"}
+                                  </span>
+                                </div>
+                              </button>
+                              {isOpen && (
+                                <pre className="px-3 py-2 text-xs overflow-auto bg-gray-50 text-left">
+                                  {loadingStep === key
+                                    ? "Loading log..."
+                                    : logCache[key] || ""}
+                                </pre>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {failed && (
