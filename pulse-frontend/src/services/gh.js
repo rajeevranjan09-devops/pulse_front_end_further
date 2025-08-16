@@ -19,6 +19,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Attach auth token (if any) to every request. Many endpoints such as
+// organization listing, pipeline refresh and AI suggestions require the
+// bearer token to be sent explicitly. Without this interceptor the calls
+// were failing with 401 which resulted in empty organizations and no
+// dynamic updates.
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 export async function fetchOrganizations() {
   // Backend responds with `{ orgs: [...] }`.
   // Returning the inner array keeps the consumer logic simple and

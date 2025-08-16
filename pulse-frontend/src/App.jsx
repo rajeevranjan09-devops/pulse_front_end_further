@@ -12,9 +12,7 @@ export default function App() {
     <Routes>
       <Route
         path="/"
-        element={
-          <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-        }
+        element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
       />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
@@ -28,9 +26,7 @@ export default function App() {
       />
       <Route
         path="*"
-        element={
-          <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-        }
+        element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
       />
     </Routes>
   );
