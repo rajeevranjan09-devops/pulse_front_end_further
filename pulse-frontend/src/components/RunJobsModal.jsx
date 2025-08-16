@@ -105,26 +105,46 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
       // Gather a compact textual log for this job
       const { text } = await fetchJobLog(owner, repo, runId, job.id);
 
-      // Build a short error text from failed steps (if any)
-      const failedStep = (job.steps || []).find(
-        (s) => (s.conclusion || "").toLowerCase() === "failure"
-      );
-      const errorText = failedStep
-        ? `Failed step: ${failedStep.name} — status: ${failedStep.status}, conclusion: ${failedStep.conclusion}`
-        : `Job ended with conclusion: ${job.conclusion}`;
+export async function fetchPipelines(org, includeRuns = true) {
+  const { data } = await api.get("/github/pipelines", {
+    params: { org, includeRuns },
+  });
+  return data;
+}
 
-      const { suggestion } = await aiSuggest({
-        errorText,
-        stepsLog: text || "",
-      });
+/**
+ * fetchRunJobs(owner, repo, runOrId)
+ * - Accepts a run object (with runId or id), or a primitive id.
+ * - Always sends `runId` to backend.
+ */
+export async function fetchRunJobs(owner, repo, runOrId) {
+  const runId =
+    typeof runOrId === "object"
+      ? runOrId.runId ?? runOrId.id ?? runOrId.run_id
+      : runOrId;
 
-      setAiText(suggestion || "No suggestion");
-    } catch (e) {
-      setAiText(e.response?.data?.error || e.message || "AI suggestion failed");
-    } finally {
-      setAiLoading(false);
-    }
+  if (runId == null) {
+    throw new Error("runId was not provided to fetchRunJobs()");
+  }
+
+  // Request step details so that each task's status/conclusion is present in
+  // the response. Without `includeSteps` the backend only returned the task
+  // names which meant we could not display their current status in the UI.
+  const { data } = await api.get("/github/run-jobs", {
+    params: { owner, repo, runId: String(runId), includeSteps: true },
+  });
+  return data;
+}
+
+/** Build a compact text log for a job or specific step (for AI or UI) */
+export async function fetchJobLog(owner, repo, runId, jobId, stepNum) {
+  const params = {
+    owner,
+    repo,
+    runId: String(runId),
+    jobId: String(jobId),
   };
+  if (stepNum != null) params.step = String(stepNum);
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
@@ -238,28 +258,8 @@ export default function RunJobsModal({ open, onClose, owner, repo, run }) {
                               : "Get AI Fix"}
                           </button>
 
-                          {aiForJob === job.id && aiText && (
-                            <div className="mt-3 p-3 rounded-lg border bg-white prose prose-sm max-w-none">
-                              <div className="text-xs text-gray-500 mb-1">
-                                AI suggestion
-                              </div>
-                              <div
-                                className="whitespace-pre-wrap"
-                                style={{ fontFamily: "ui-sans-serif" }}
-                              >
-                                {aiText}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-        </div>
-      </div>
-    </div>
-  );
+/** Ask the Gemini backend for a fix suggestion */
+export async function aiSuggest({ errorText = "", stepsLog = "" }) {
+  const { data } = await api.post("/ai/suggest", { errorText, stepsLog });
+  return data; // { suggestion }
 }
