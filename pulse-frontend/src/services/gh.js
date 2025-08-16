@@ -31,11 +31,12 @@ api.interceptors.request.use((config) => {
 });
 
 export async function fetchOrganizations() {
-  // Backend responds with `{ orgs: [...] }`.
-  // Returning the inner array keeps the consumer logic simple and
-  // avoids treating the object itself as an array which previously
-  // resulted in a failed organizations dropdown.
+  // Normalize backend responses which may return `{ orgs: [...] }` or a plain
+  // array. Returning just the array keeps the consumer logic simple and avoids
+  // treating the object itself as an array which previously resulted in a
+  // failed organizations dropdown.
   const { data } = await api.get("/github/organizations");
+  if (Array.isArray(data)) return data;
   return data?.orgs || [];
 }
 
