@@ -17,8 +17,7 @@ override it at build time with the `VITE_API_BASE` build argument.
 ## Build the Docker image
 
 ```
-docker build -t <registry>/pulse-frontend:1.0.0 \
-  --build-arg VITE_API_BASE=https://backend.example.com .
+docker build -t <registry>/pulse-frontend:1.0.0 --build-arg VITE_API_BASE=https://backend.example.com .
 ```
 
 ## Push to Azure Container Registry (ACR)
@@ -30,17 +29,13 @@ docker push <registry>/pulse-frontend:1.0.0
 
 ## Deploy to AKS
 
-1. Attach the ACR to your AKS cluster if needed:
-   ```
-   az aks update -n <cluster> -g <resource-group> --attach-acr <acr>
-   ```
-2. Apply the Kubernetes manifests:
+1. Apply the Kubernetes manifests:
    ```
    kubectl apply -f k8s/deployment.yaml
    kubectl apply -f k8s/service.yaml
    kubectl apply -f k8s/ingress.yaml  # optional
    ```
-3. Verify the resources:
+2. Verify the resources:
    ```
    kubectl get pods
    kubectl get svc
