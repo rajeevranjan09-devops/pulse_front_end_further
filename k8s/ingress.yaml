@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pulse-frontend
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: your-frontend.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pulse-frontend
+                port:
+                  number: 80

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pulse-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pulse-frontend
+  template:
+    metadata:
+      labels:
+        app: pulse-frontend
+    spec:
+      containers:
+        - name: pulse-frontend
+          image: your-registry/pulse-frontend:latest
+          ports:
+            - containerPort: 80
+      imagePullSecrets:
+        - name: acr-pull
