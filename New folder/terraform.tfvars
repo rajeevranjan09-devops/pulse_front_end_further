@@ -1,0 +1,9 @@
+region              = "ap-south-1"
+vpc_cidr            = "10.0.0.0/16"
+public_subnet_cidr  = "10.0.1.0/24"
+availability_zone   = "ap-south-1a"
+container_image     = "nginx:latest"
+container_port      = 80
+ecs_cpu             = "256"
+ecs_memory          = "512"
+desired_count       = 1
